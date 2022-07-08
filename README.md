@@ -17,3 +17,6 @@ Examples:
 ```unitc /config```
 
 ```echo '{"*:8080": {"pass": "routes"}}' | unitc /config/listeners```
+
+```unitc /control/applications/my_app/restart```
+
