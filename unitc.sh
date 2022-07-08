@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # unitc - a curl wrapper for configuring NGINX Unit
 # [v1.0 09-Jul-2022] Liam Crilly <liam@nginx.com>
 
@@ -91,7 +91,7 @@ else
 	# Cache the discovery for this unit PID (and cleanup any old files)
 	#
 	rm /tmp/${0##*/}.* 2> /dev/null
-	printf "${CURL_ADDR}\n${ERROR_LOG}\n" > /tmp/${0##*/}.$PID
+	echo -en "${CURL_ADDR}\n${ERROR_LOG}\n" > /tmp/${0##*/}.$PID
 fi
 
 # Adjust HTTP method and curl params based on presence of stdin payload
