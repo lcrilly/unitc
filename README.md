@@ -14,9 +14,11 @@ When making changes, the error log is monitored and new log entries are shown.
 
 Examples:
 
-```unitc /config```
+```shell
+unitc /config
+unitc /control/applications/my_app/restart
+echo '{"*:8080": {"pass": "routes"}}' | unitc /config/listeners
+unitc /config < unitconf.json
+```
 
-```echo '{"*:8080": {"pass": "routes"}}' | unitc /config/listeners```
-
-```unitc /control/applications/my_app/restart```
 
