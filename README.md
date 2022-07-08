@@ -19,6 +19,7 @@ unitc /config
 unitc /control/applications/my_app/restart
 echo '{"*:8080": {"pass": "routes"}}' | unitc /config/listeners
 unitc /config < unitconf.json
+unitc DELETE /config/routes
 ```
 
 
