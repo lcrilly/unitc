@@ -8,7 +8,6 @@
 # v1.0 Initial version with socket detection and log monitoring
 #
 # TODO
-# - Permit mixed/lower case HTTP methods (e.g. put)
 # - Iteratively scan for new log entries
 # - Optionally provide JSON config as filename on command line
 
@@ -119,7 +118,11 @@ if [ -t 0 ]; then
 	if [ "${1:0:8}" = "/control" ]; then
 		SHOW_LOG=2
 	fi
-	curl -s -X $METHOD $CURL_ADDR$1 | $PRETTY
+	if [ "$METHOD" = "DELETE" ]; then
+		curl -s -X $METHOD $CURL_ADDR$1 | $PRETTY
+	else
+		curl -s $CURL_ADDR$1 | $PRETTY
+	fi
 else
 	SHOW_LOG=1
 	echo "$(cat)" | curl -s -X $METHOD --data-binary @- $CURL_ADDR$1 | $PRETTY
