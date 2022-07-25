@@ -1,10 +1,16 @@
 #!/bin/bash
 # unitc - a curl wrapper for configuring NGINX Unit
-# [v1.1 09-Jul-2022] Liam Crilly <liam@nginx.com>
+# [v1.2 25-Jul-2022] Liam Crilly <liam@nginx.com>
 #
 # CHANGELOG
+# v1.2 Accepts lower-case HTTP methods, simpler/portable cache format
 # v1.1 Uses jq(1) if available for prettified output, added --help
 # v1.0 Initial version with socket detection and log monitoring
+#
+# TODO
+# - Permit mixed/lower case HTTP methods (e.g. put)
+# - Iteratively scan for new log entries
+# - Optionally provide JSON config as filename on command line
 
 # Defaults
 #
@@ -13,23 +19,24 @@ METHOD=PUT
 SHOW_LOG=0
 
 while [ $# -gt 1 ]; do
-	case $1 in
-		"-h" | "--help")
+	OPTION=`echo $1 | tr '[a-z]' '[A-Z]'`
+	case $OPTION in
+		"-H" | "--HELP")
 			shift
 			;;
 
-		"-q" | "--quiet")
+		"-Q" | "--QUIET")
 			QUIET=1
 			shift
 			;;
 
 		"GET" | "PUT" | "POST" | "DELETE")
-			METHOD=$1
+			METHOD=$OPTION
 			shift
 			;;
 
 		"HEAD" | "PATCH" | "PURGE" | "OPTIONS")
-			echo "${0##*/}: ERROR: Invalid HTTP method ($1)"
+			echo "${0##*/}: ERROR: Invalid HTTP method ($OPTION)"
 			exit 1
 			;;
 
@@ -64,13 +71,7 @@ fi
 # Read the significant unitd conifuration from cache file (or create it)
 #
 if [ -f /tmp/${0##*/}.$PID ]; then
-	CONFIG=()
-	while IFS= read -r line; do
-		CONFIG+=("$line")
-	done < /tmp/${0##*/}.$PID
-
-	CURL_ADDR=${CONFIG[0]}
-	ERROR_LOG=${CONFIG[1]}
+	source /tmp/${0##*/}.$PID
 else
 	PARAMS=`ps -p $PID | grep unitd | cut -f2- -dv | tr '[]' ' ' | cut -f4- -d ' ' | sed -e 's/ --/\n--/g'`
 
@@ -99,7 +100,8 @@ else
 	# Cache the discovery for this unit PID (and cleanup any old files)
 	#
 	rm /tmp/${0##*/}.* 2> /dev/null
-	echo -en "${CURL_ADDR}\n${ERROR_LOG}\n" > /tmp/${0##*/}.$PID
+	echo CURL_ADDR=\"${CURL_ADDR}\" > /tmp/${0##*/}.$PID
+	echo ERROR_LOG=${ERROR_LOG} >> /tmp/${0##*/}.$PID
 fi
 
 # Test for jq
@@ -117,10 +119,10 @@ if [ -t 0 ]; then
 	if [ "${1:0:8}" = "/control" ]; then
 		SHOW_LOG=2
 	fi
-	curl -s $CURL_ADDR$1 | $PRETTY
+	curl -s -X $METHOD $CURL_ADDR$1 | $PRETTY
 else
 	SHOW_LOG=1
-	echo "$(cat)" | curl -s -X $METHOD --data-binary @- $CURL_ADDR$1
+	echo "$(cat)" | curl -s -X $METHOD --data-binary @- $CURL_ADDR$1 | $PRETTY
 fi
 
 if [[ $SHOW_LOG -gt 0 && $QUIET -eq 0 ]]; then
@@ -129,3 +131,5 @@ if [[ $SHOW_LOG -gt 0 && $QUIET -eq 0 ]]; then
 	echo ""
 	sed -n $((LOG_LEN+1)),\$p $ERROR_LOG
 fi
+
+# vim: syntax=bash
