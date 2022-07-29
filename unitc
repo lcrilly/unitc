@@ -15,7 +15,7 @@
 #
 QUIET=0
 METHOD=PUT
-SHOW_LOG=0
+SHOW_LOG=1
 
 while [ $# -gt 1 ]; do
 	OPTION=`echo $1 | tr '[a-z]' '[A-Z]'`
@@ -61,22 +61,25 @@ fi
 
 # Check if Unit is running, find the main process
 #
-PID=`ps ax | grep unit:\ main | grep -v \ grep | awk '{print $1}'`
-if [ "$PID" = "" ]; then
+PID=(`ps ax | grep unit:\ main | grep -v \ grep | awk '{print $1}'`)
+if [ ${#PID[@]} -eq 0 ]; then
 	echo "${0##*/}: ERROR: unitd not running"
+	exit 1
+elif [ ${#PID[@]} -gt 1 ]; then
+	echo "${0##*/}: ERROR: multiple unitd processes detected (${PID[@]})"
 	exit 1
 fi
 
 # Read the significant unitd conifuration from cache file (or create it)
 #
-if [ -f /tmp/${0##*/}.$PID ]; then
+if [[ -f /tmp/${0##*/}.$PID ]]; then
 	source /tmp/${0##*/}.$PID
 else
 	PARAMS=`ps -p $PID | grep unitd | cut -f2- -dv | tr '[]' ' ' | cut -f4- -d ' ' | sed -e 's/ --/\n--/g'`
 
 	# Get control address
 	#
-	CTRL_ADDR=`echo $PARAMS | grep '\--control' | cut -f2 -d' '`
+	CTRL_ADDR=`echo "$PARAMS" | grep '\--control' | cut -f2 -d' '`
 	if [ "$CTRL_ADDR" = "" ]; then
 		CTRL_ADDR=`unitd --help | grep -A1 '\--control' | tail -1 |  cut -f2 -d\"`
 	fi
@@ -91,7 +94,7 @@ else
 
 	# Get error log filename
 	#
-	ERROR_LOG=`echo $PARAMS | grep '\--log' | cut -f2 -d' '`
+	ERROR_LOG=`echo "$PARAMS" | grep '\--log' | cut -f2 -d' '`
 	if [ "$ERROR_LOG" = "" ]; then
 		ERROR_LOG=`unitd --help | grep -A1 '\--log' | tail -1 | cut -f2 -d\"`
 	fi
@@ -111,20 +114,24 @@ else
 	PRETTY="cat"
 fi
 
+# Get current length of error log before we make any changes
+#
+if [ -f $ERROR_LOG ]; then
+	LOG_LEN=`wc -l < $ERROR_LOG`
+else
+	QUIET=1
+fi
+
 # Adjust HTTP method and curl params based on presence of stdin payload
 #
-LOG_LEN=`wc -l < $ERROR_LOG`
 if [ -t 0 ]; then
-	if [ "${1:0:8}" = "/control" ]; then
-		SHOW_LOG=2
-	fi
 	if [ "$METHOD" = "DELETE" ]; then
 		curl -s -X $METHOD $CURL_ADDR$1 | $PRETTY
 	else
+		SHOW_LOG=0
 		curl -s $CURL_ADDR$1 | $PRETTY
 	fi
 else
-	SHOW_LOG=1
 	echo "$(cat)" | curl -s -X $METHOD --data-binary @- $CURL_ADDR$1 | $PRETTY
 fi
 
