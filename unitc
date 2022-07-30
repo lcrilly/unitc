@@ -1,8 +1,9 @@
 #!/bin/bash
 # unitc - a curl wrapper for configuring NGINX Unit
-# [v1.2 25-Jul-2022] Liam Crilly <liam@nginx.com>
+# [v1.3 30-Jul-2022] Liam Crilly <liam@nginx.com>
 #
 # CHANGELOG
+# v1.3 Bug fixes and improved error handling
 # v1.2 Accepts lower-case HTTP methods, simpler/portable cache format
 # v1.1 Uses jq(1) if available for prettified output, added --help
 # v1.0 Initial version with socket detection and log monitoring
@@ -133,6 +134,9 @@ if [ -t 0 ]; then
 	fi
 else
 	echo "$(cat)" | curl -s -X $METHOD --data-binary @- $CURL_ADDR$1 | $PRETTY
+fi
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+	echo "${0##*/}: ERROR: curl exited with an error"
 fi
 
 if [[ $SHOW_LOG -gt 0 && $QUIET -eq 0 ]]; then
