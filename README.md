@@ -7,6 +7,8 @@ A curl wrapper for configuring NGINX Unit
 Just provide the configuration URI (e.g. `/config/routes`) and **unitc** will
 find the control socket to construct the full address in curl syntax.
 
+```USAGE: unitc [HTTP method] [--quiet] URI```
+
 Providing a JSON configuration on stdin will use the PUT method unless a specific
 method is specified. Otherwise a GET is used to read the configuration. HTTP methods
 can be specified in lower case. [jq](https://stedolan.github.io/jq/) is used to
