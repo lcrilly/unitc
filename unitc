@@ -1,8 +1,9 @@
 #!/bin/bash
 # unitc - a curl wrapper for configuring NGINX Unit
-# [v1.3 30-Jul-2022] Liam Crilly <liam@nginx.com>
+# [v1.4 01-Oct-2022] Liam Crilly <liam@nginx.com>
 #
 # CHANGELOG
+# v1.4 Log file read test and better curl error handling
 # v1.3 Bug fixes and improved error handling
 # v1.2 Accepts lower-case HTTP methods, simpler/portable cache format
 # v1.1 Uses jq(1) if available for prettified output, added --help
@@ -117,7 +118,7 @@ fi
 
 # Get current length of error log before we make any changes
 #
-if [ -f $ERROR_LOG ]; then
+if [ -f $ERROR_LOG ] && [ -r $ERROR_LOG ]; then
 	LOG_LEN=`wc -l < $ERROR_LOG`
 else
 	QUIET=1
@@ -127,16 +128,17 @@ fi
 #
 if [ -t 0 ]; then
 	if [ "$METHOD" = "DELETE" ]; then
-		curl -s -X $METHOD $CURL_ADDR$1 | $PRETTY
+		curl -X $METHOD $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
 	else
 		SHOW_LOG=0
-		curl -s $CURL_ADDR$1 | $PRETTY
+		curl $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
 	fi
 else
-	echo "$(cat)" | curl -s -X $METHOD --data-binary @- $CURL_ADDR$1 | $PRETTY
+	echo "$(cat)" | curl -X $METHOD --data-binary @- $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
 fi
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
 	echo "${0##*/}: ERROR: curl exited with an error"
+	cat /tmp/${0##*/}.curl
 fi
 
 if [[ $SHOW_LOG -gt 0 && $QUIET -eq 0 ]]; then
