@@ -1,8 +1,9 @@
 #!/bin/bash
 # unitc - a curl wrapper for configuring NGINX Unit
-# [v1.4 02-Oct-2022] Liam Crilly <liam@nginx.com>
+# [v1.5 12-Oct-2022] Liam Crilly <liam@nginx.com>
 #
 # CHANGELOG
+# v1.5 Reverted portability change (`unitd --help` more reliable than --version)
 # v1.4 File permissions checks and improved portability
 # v1.3 Bug fixes and improved error handling
 # v1.2 Accepts lower-case HTTP methods, simpler/portable cache format
@@ -84,7 +85,7 @@ else
 	#
 	CTRL_ADDR=`echo "$PARAMS" | grep '\--control' | cut -f2 -d' '`
 	if [ "$CTRL_ADDR" = "" ]; then
-		CTRL_ADDR=`unitd --version 2>&1 | sed -e 's/ --/\n/g' | grep ^control= | cut -f2 -d=`
+		CTRL_ADDR=`unitd --help | grep -A1 '\--control' | tail -1 |  cut -f2 -d\"`
 	fi
 
 	# Prepare for network or Unix socket addressing
@@ -106,7 +107,7 @@ else
 	#
 	ERROR_LOG=`echo "$PARAMS" | grep '\--log' | cut -f2 -d' '`
 	if [ "$ERROR_LOG" = "" ]; then
-		ERROR_LOG=`unitd --version 2>&1 | sed -e 's/ --/\n/g' | grep ^log= | cut -f2 -d=`
+		ERROR_LOG=`unitd --help | grep -A1 '\--log' | tail -1 | cut -f2 -d\"`
 	fi
 
 	# Cache the discovery for this unit PID (and cleanup any old files)
