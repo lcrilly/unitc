@@ -1,8 +1,9 @@
 #!/bin/bash
 # unitc - a curl wrapper for configuring NGINX Unit
-# [v1.5 12-Oct-2022] Liam Crilly <liam@nginx.com>
+# [v1.6 31-Oct-2022] Liam Crilly <liam@nginx.com>
 #
 # CHANGELOG
+# v1.6 Introduced INSERT method for prepending arrays
 # v1.5 Reverted portability change (`unitd --help` more reliable than --version)
 # v1.4 File permissions checks and improved portability
 # v1.3 Bug fixes and improved error handling
@@ -32,7 +33,7 @@ while [ $# -gt 1 ]; do
 			shift
 			;;
 
-		"GET" | "PUT" | "POST" | "DELETE")
+		"GET" | "PUT" | "POST" | "DELETE" | "INSERT")
 			METHOD=$OPTION
 			shift
 			;;
@@ -54,6 +55,7 @@ if [ $# -lt 1 ] || [ "${1:0:1}" = "-" ]; then
 	echo "USAGE: ${0##*/} [HTTP method] [--quiet] URI"
 	echo "       • Configuration JSON is read from stdin"
 	echo "       • Default method is PUT with stdin, else GET"
+	echo "       • Virtual method INSERT adds to beginning of array"
 	echo "       • The control socket is automatically detected"
 	exit 1
 fi
@@ -143,11 +145,23 @@ if [ -t 0 ]; then
 		curl $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
 	fi
 else
-	echo "$(cat)" | curl -X $METHOD --data-binary @- $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
+	if [ "$METHOD" = "INSERT" ]; then
+		CURR_VAL=`curl -s $CURL_ADDR$1`
+		if [ "`echo $CURR_VAL | jq -r type`" = "array" ]; then
+			SUFFIX=$(cat)
+			echo $CURR_VAL | jq ". |= [$SUFFIX] + ." | curl -X PUT --data-binary @- $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
+		else
+			 echo "${0##*/}: ERROR: INSERT method must be used with an array"
+			 exit 3
+		fi
+	else
+		echo "$(cat)" | curl -X $METHOD --data-binary @- $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
+	fi
 fi
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
 	echo "${0##*/}: ERROR: curl exited with an error ${PIPESTATUS[0]}"
 	cat /tmp/${0##*/}.curl
+	exit 4
 fi
 
 if [ $SHOW_LOG -gt 0 ] && [ $QUIET -eq 0 ]; then
