@@ -1,6 +1,6 @@
 #!/bin/bash
 # unitc - a curl wrapper for configuring NGINX Unit
-# [v1.6 31-Oct-2022] Liam Crilly <liam@nginx.com>
+# [v1.6 01-Nov-2022] Liam Crilly <liam@nginx.com>
 #
 # CHANGELOG
 # v1.6 Introduced INSERT method for prepending arrays
@@ -146,13 +146,17 @@ if [ -t 0 ]; then
 	fi
 else
 	if [ "$METHOD" = "INSERT" ]; then
+		if [ "$PRETTY" != "jq" ]; then
+			echo "${0##*/}: ERROR: jq(1) is required to use INSERT method, install at https://stedolan.github.io/jq/"
+			exit 1
+		fi
 		CURR_VAL=`curl -s $CURL_ADDR$1`
 		if [ "`echo $CURR_VAL | jq -r type`" = "array" ]; then
 			SUFFIX=$(cat)
 			echo $CURR_VAL | jq ". |= [$SUFFIX] + ." | curl -X PUT --data-binary @- $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
 		else
-			 echo "${0##*/}: ERROR: INSERT method must be used with an array"
-			 exit 3
+			echo "${0##*/}: ERROR: INSERT method must be used with an array"
+			exit 3
 		fi
 	else
 		echo "$(cat)" | curl -X $METHOD --data-binary @- $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
