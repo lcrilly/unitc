@@ -1,10 +1,11 @@
 #!/bin/bash
 # unitc - a curl wrapper for configuring NGINX Unit
-# [v1.6 01-Nov-2022] Liam Crilly <liam@nginx.com>
+# [v1.7 02-Nov-2022] Liam Crilly <liam@nginx.com>
 #
 # CHANGELOG
-# v1.6 Introduced INSERT method for prepending arrays
-# v1.5 Reverted portability change (`unitd --help` more reliable than --version)
+# v1.7 Command line options can now appear in any position (before or after URI)
+# v1.6 Introduced INSERT method for prepending arrays (requires jq)
+# v1.5 Reverted portability change (`unitd --help` is more reliable than --version)
 # v1.4 File permissions checks and improved portability
 # v1.3 Bug fixes and improved error handling
 # v1.2 Accepts lower-case HTTP methods, simpler/portable cache format
@@ -20,8 +21,9 @@
 QUIET=0
 METHOD=PUT
 SHOW_LOG=1
+URI=""
 
-while [ $# -gt 1 ]; do
+while [ $# -gt 0 ]; do
 	OPTION=`echo $1 | tr '[a-z]' '[A-Z]'`
 	case $OPTION in
 		"-H" | "--HELP")
@@ -44,24 +46,25 @@ while [ $# -gt 1 ]; do
 			;;
 
 		*)
-			echo "${0##*/}: ERROR: Invalid option ($1)"
-			exit 1
+			if [ "${1:0:1}" = "/" ]; then
+				URI=$1
+				shift
+			else
+				echo "${0##*/}: ERROR: Invalid option ($1)"
+				exit 1
+			fi
 			;;
 	esac
 done
 
-if [ $# -lt 1 ] || [ "${1:0:1}" = "-" ]; then
+if [ "$URI" = "" ]; then
 	echo "${0##*/} - a curl wrapper for configuring NGINX Unit"
 	echo "USAGE: ${0##*/} [HTTP method] [--quiet] URI"
+	echo "       • Options can appear in any position"
 	echo "       • Configuration JSON is read from stdin"
 	echo "       • Default method is PUT with stdin, else GET"
 	echo "       • Virtual method INSERT adds to beginning of array"
 	echo "       • The control socket is automatically detected"
-	exit 1
-fi
-
-if [ "${1:0:1}" != "/" ]; then
-	echo "${0##*/}: ERROR: Invalid configuration URI"
 	exit 1
 fi
 
@@ -139,10 +142,10 @@ fi
 #
 if [ -t 0 ]; then
 	if [ "$METHOD" = "DELETE" ]; then
-		curl -X $METHOD $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
+		curl -X $METHOD $CURL_ADDR$URI 2> /tmp/${0##*/}.curl | $PRETTY
 	else
-		SHOW_LOG=`echo $1 | grep -c ^/control/`
-		curl $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
+		SHOW_LOG=`echo $URI | grep -c ^/control/`
+		curl $CURL_ADDR$URI 2> /tmp/${0##*/}.curl | $PRETTY
 	fi
 else
 	if [ "$METHOD" = "INSERT" ]; then
@@ -150,16 +153,16 @@ else
 			echo "${0##*/}: ERROR: jq(1) is required to use INSERT method, install at https://stedolan.github.io/jq/"
 			exit 1
 		fi
-		CURR_VAL=`curl -s $CURL_ADDR$1`
+		CURR_VAL=`curl -s $CURL_ADDR$URI`
 		if [ "`echo $CURR_VAL | jq -r type`" = "array" ]; then
 			SUFFIX=$(cat)
-			echo $CURR_VAL | jq ". |= [$SUFFIX] + ." | curl -X PUT --data-binary @- $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
+			echo $CURR_VAL | jq ". |= [$SUFFIX] + ." | curl -X PUT --data-binary @- $CURL_ADDR$URI 2> /tmp/${0##*/}.curl | $PRETTY
 		else
 			echo "${0##*/}: ERROR: INSERT method must be used with an array"
 			exit 3
 		fi
 	else
-		echo "$(cat)" | curl -X $METHOD --data-binary @- $CURL_ADDR$1 2> /tmp/${0##*/}.curl | $PRETTY
+		echo "$(cat)" | curl -X $METHOD --data-binary @- $CURL_ADDR$URI 2> /tmp/${0##*/}.curl | $PRETTY
 	fi
 fi
 if [ ${PIPESTATUS[0]} -ne 0 ]; then

@@ -26,5 +26,13 @@ unitc /config
 unitc /control/applications/my_app/restart
 echo '{"*:8080": {"pass": "routes"}}' | unitc /config/listeners
 unitc /config < unitconf.json
-unitc delete /config/routes
+unitc delete /config/applications/wp
+```
+
+Command line options can be specified in any order. For example, a redundant part
+of the configuration can be located by URI and appended with `delete` in a subsequent
+invocation.
+```shell
+unitc /config/routes/0
+unitc /config/routes/0 delete
 ```
