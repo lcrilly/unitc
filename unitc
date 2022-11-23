@@ -76,6 +76,14 @@ fi
 if [ -r /tmp/${0##*/}.$PID.env ]; then
 	source /tmp/${0##*/}.$PID.env
 else
+	# Check for curl
+	#
+	hash curl 2> /dev/null
+	if [ $? -ne 0 ]; then
+		echo "${0##*/}: ERROR: cannot find curl(1), please install or add to \$PATH"
+		exit 1
+	fi
+
 	PARAMS=$(ps $PID | grep unitd | cut -f2- -dv | tr '[]' ' ' | cut -f4- -d ' ' | sed -e 's/ --/\n--/g')
 
 	# Get control address
@@ -87,7 +95,7 @@ else
 
 	# Prepare for network or Unix socket addressing
 	#
-	if [ `echo $CTRL_ADDR | grep -c ^unix:` -eq 1 ]; then
+	if [ $(echo $CTRL_ADDR | grep -c ^unix:) -eq 1 ]; then
 		SOCK_FILE=$(echo $CTRL_ADDR | cut -f2- -d:)
 		if [ -r $SOCK_FILE ]; then
 			CURL_ADDR="--unix-socket $SOCK_FILE _"
@@ -146,7 +154,7 @@ else
 			exit 1
 		fi
 		CURR_VAL=$(curl -s $CURL_ADDR$URI)
-		if [ "`echo $CURR_VAL | jq -r type`" = "array" ]; then
+		if [ "$(echo $CURR_VAL | jq -r type)" = "array" ]; then
 			SUFFIX=$(cat)
 			echo $CURR_VAL | jq ". |= [$SUFFIX] + ." | curl -X PUT --data-binary @- $CURL_ADDR$URI 2> /tmp/${0##*/}.$$ | $PRETTY
 		else
@@ -157,9 +165,15 @@ else
 		echo "$(cat)" | curl -X $METHOD --data-binary @- $CURL_ADDR$URI 2> /tmp/${0##*/}.$$ | $PRETTY
 	fi
 fi
-if [ ${PIPESTATUS[0]} -ne 0 ]; then
-	echo "${0##*/}: ERROR: curl exited with an error ${PIPESTATUS[0]}"
-	cat /tmp/${0##*/}.$$ && rm /tmp/${0##*/}.$$
+
+CURL_STATUS=${PIPESTATUS[0]}
+if [ $CURL_STATUS -ne 0 ]; then
+	echo "${0##*/}: ERROR: curl(1) exited with an error ($CURL_STATUS)"
+	if [ $CURL_STATUS -eq 7 ]; then
+		echo "${0##*/}: Check that you have permission to access the Unit control socket, or try again with sudo(8)"
+	else
+		cat /tmp/${0##*/}.$$ && rm /tmp/${0##*/}.$$
+	fi
 	exit 4
 fi
 rm /tmp/${0##*/}.$$ 2> /dev/null
