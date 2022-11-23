@@ -1,21 +1,6 @@
 #!/bin/bash
 # unitc - a curl wrapper for configuring NGINX Unit
-# [v1.8 17-Nov-2022] Liam Crilly <liam@nginx.com>
-#
-# CHANGELOG
-# v1.8 Stopped using `ps -p`, more robust use of tmp files in multi-user envs
-# v1.7 Command line options can now appear in any position (before or after URI)
-# v1.6 Introduced INSERT method for prepending arrays (requires jq)
-# v1.5 Reverted portability change (`unitd --help` is more reliable than --version)
-# v1.4 File permissions checks and improved portability
-# v1.3 Bug fixes and improved error handling
-# v1.2 Accepts lower-case HTTP methods, simpler/portable cache format
-# v1.1 Uses jq(1) if available for prettified output, added --help
-# v1.0 Initial version with socket detection and log monitoring
-#
-# TODO
-# - Iteratively scan for new log entries
-# - Optionally provide JSON config as filename on command line
+# NGINX, Inc. (c) 2022
 
 # Defaults
 #
@@ -25,7 +10,7 @@ SHOW_LOG=1
 URI=""
 
 while [ $# -gt 0 ]; do
-	OPTION=`echo $1 | tr '[a-z]' '[A-Z]'`
+	OPTION=$(echo $1 | tr '[a-z]' '[A-Z]')
 	case $OPTION in
 		"-H" | "--HELP")
 			shift
@@ -60,18 +45,24 @@ done
 
 if [ "$URI" = "" ]; then
 	echo "${0##*/} - a curl wrapper for configuring NGINX Unit"
-	echo "USAGE: ${0##*/} [HTTP method] [--quiet] URI"
-	echo "       • Options can appear in any position"
-	echo "       • Configuration JSON is read from stdin"
-	echo "       • Default method is PUT with stdin, else GET"
-	echo "       • Virtual method INSERT adds to beginning of array"
-	echo "       • The control socket is automatically detected"
+	echo ""
+	echo "USAGE: ${0##*/} [--quiet] [HTTP method] URI"
+	echo ""
+	echo " URI is for the Unit configuration API, e.g. /config"
+	echo " --quiet (-q) Will not monitor the error log after config changes"
+	echo ""
+	echo " • Configuration JSON is read from stdin"
+	echo " • Default HTTP method is PUT for config changes, else GET"
+	echo " • Virtual method INSERT adds to beginning of array"
+	echo " • Options can appear in any position, e.g. method after URI"
+	echo " • The control socket is automatically detected"
+	echo ""
 	exit 1
 fi
 
 # Check if Unit is running, find the main process
 #
-PID=(`ps ax | grep unit:\ main | grep -v \ grep | awk '{print $1}'`)
+PID=($(ps ax | grep unit:\ main | grep -v \ grep | awk '{print $1}'))
 if [ ${#PID[@]} -eq 0 ]; then
 	echo "${0##*/}: ERROR: unitd not running"
 	exit 1
@@ -85,19 +76,19 @@ fi
 if [ -r /tmp/${0##*/}.$PID.env ]; then
 	source /tmp/${0##*/}.$PID.env
 else
-	PARAMS=`ps $PID | grep unitd | cut -f2- -dv | tr '[]' ' ' | cut -f4- -d ' ' | sed -e 's/ --/\n--/g'`
+	PARAMS=$(ps $PID | grep unitd | cut -f2- -dv | tr '[]' ' ' | cut -f4- -d ' ' | sed -e 's/ --/\n--/g')
 
 	# Get control address
 	#
-	CTRL_ADDR=`echo "$PARAMS" | grep '\--control' | cut -f2 -d' '`
+	CTRL_ADDR=$(echo "$PARAMS" | grep '\--control' | cut -f2 -d' ')
 	if [ "$CTRL_ADDR" = "" ]; then
-		CTRL_ADDR=`unitd --help | grep -A1 '\--control' | tail -1 |  cut -f2 -d\"`
+		CTRL_ADDR=$(unitd --help | grep -A1 '\--control' | tail -1 |  cut -f2 -d\")
 	fi
 
 	# Prepare for network or Unix socket addressing
 	#
 	if [ `echo $CTRL_ADDR | grep -c ^unix:` -eq 1 ]; then
-		SOCK_FILE=`echo $CTRL_ADDR | cut -f2- -d:`
+		SOCK_FILE=$(echo $CTRL_ADDR | cut -f2- -d:)
 		if [ -r $SOCK_FILE ]; then
 			CURL_ADDR="--unix-socket $SOCK_FILE _"
 		else
@@ -111,9 +102,9 @@ else
 
 	# Get error log filename
 	#
-	ERROR_LOG=`echo "$PARAMS" | grep '\--log' | cut -f2 -d' '`
+	ERROR_LOG=$(echo "$PARAMS" | grep '\--log' | cut -f2 -d' ')
 	if [ "$ERROR_LOG" = "" ]; then
-		ERROR_LOG=`unitd --help | grep -A1 '\--log' | tail -1 | cut -f2 -d\"`
+		ERROR_LOG=$(unitd --help | grep -A1 '\--log' | tail -1 | cut -f2 -d\")
 	fi
 
 	# Cache the discovery for this unit PID (and cleanup any old files)
@@ -134,7 +125,7 @@ fi
 # Get current length of error log before we make any changes
 #
 if [ -f $ERROR_LOG ] && [ -r $ERROR_LOG ]; then
-	LOG_LEN=`wc -l < $ERROR_LOG`
+	LOG_LEN=$(wc -l < $ERROR_LOG)
 else
 	QUIET=1
 fi
@@ -145,7 +136,7 @@ if [ -t 0 ]; then
 	if [ "$METHOD" = "DELETE" ]; then
 		curl -X $METHOD $CURL_ADDR$URI 2> /tmp/${0##*/}.$$ | $PRETTY
 	else
-		SHOW_LOG=`echo $URI | grep -c ^/control/`
+		SHOW_LOG=$(echo $URI | grep -c ^/control/)
 		curl $CURL_ADDR$URI 2> /tmp/${0##*/}.$$ | $PRETTY
 	fi
 else
@@ -154,7 +145,7 @@ else
 			echo "${0##*/}: ERROR: jq(1) is required to use INSERT method, install at <https://stedolan.github.io/jq/>"
 			exit 1
 		fi
-		CURR_VAL=`curl -s $CURL_ADDR$URI`
+		CURR_VAL=$(curl -s $CURL_ADDR$URI)
 		if [ "`echo $CURR_VAL | jq -r type`" = "array" ]; then
 			SUFFIX=$(cat)
 			echo $CURR_VAL | jq ". |= [$SUFFIX] + ." | curl -X PUT --data-binary @- $CURL_ADDR$URI 2> /tmp/${0##*/}.$$ | $PRETTY
