@@ -76,11 +76,11 @@ fi
 if [ -r /tmp/${0##*/}.$PID.env ]; then
 	source /tmp/${0##*/}.$PID.env
 else
-	# Check for curl
+	# Check we have all the tools we need in $PATH
 	#
-	hash curl 2> /dev/null
-	if [ $? -ne 0 ]; then
-		echo "${0##*/}: ERROR: cannot find curl(1), please install or add to \$PATH"
+	MISSING=$(hash unitd curl ps grep cut tr sed tail sleep 2>&1 | cut -f4 -d: | tr -d '\n')
+	if [ "$MISSING" != "" ]; then
+		echo "${0##*/}: ERROR: cannot find$MISSING: please install or add to \$PATH"
 		exit 1
 	fi
 
