@@ -9,39 +9,42 @@ METHOD=PUT
 SHOW_LOG=1
 URI=""
 
-while [ $# -gt 0 ]; do
-	OPTION=$(echo $1 | tr '[a-z]' '[A-Z]')
-	case $OPTION in
-		"-H" | "--HELP")
-			shift
-			;;
+usage() {
+  echo "usage"
+}
 
-		"-Q" | "--QUIET")
-			QUIET=1
-			shift
-			;;
+check_unit_running() {
+  # Check if Unit is running, find the main process
+  #
+  PID=($(ps ax | grep unit:\ main | grep -v \ grep | awk '{print $1}'))
+  if [ ${#PID[@]} -eq 0 ]; then
+  	echo "${0##*/}: ERROR: unitd not running"
+  	exit 1
+  elif [ ${#PID[@]} -gt 1 ]; then
+  	echo "${0##*/}: ERROR: multiple unitd processes detected (${PID[@]})"
+  	exit 1
+  fi
+}
 
-		"GET" | "PUT" | "POST" | "DELETE" | "INSERT")
-			METHOD=$OPTION
-			shift
-			;;
-
-		"HEAD" | "PATCH" | "PURGE" | "OPTIONS")
-			echo "${0##*/}: ERROR: Invalid HTTP method ($OPTION)"
-			exit 1
-			;;
-
-		*)
-			if [ "${1:0:1}" = "/" ]; then
-				URI=$1
-				shift
-			else
-				echo "${0##*/}: ERROR: Invalid option ($1)"
-				exit 1
-			fi
-			;;
-	esac
+while getopts ":h:q:m:uri" o; do
+    case "${o}" in
+        h)
+            usage
+            ;;
+        m)
+            METHOD=$(echo ${OPTARG} | tr '[a-z]' '[A-Z]')
+            ;;
+        *)
+            usage
+            ;;
+    esac
 done
+shift $((OPTIND-1))
+
+#if [ -z "${s}" ] || [ -z "${p}" ]; then
+#    usage
+#fi
+
 
 if [ "$URI" = "" ]; then
 	echo "${0##*/} - a curl wrapper for configuring NGINX Unit"
@@ -60,16 +63,6 @@ if [ "$URI" = "" ]; then
 	exit 1
 fi
 
-# Check if Unit is running, find the main process
-#
-PID=($(ps ax | grep unit:\ main | grep -v \ grep | awk '{print $1}'))
-if [ ${#PID[@]} -eq 0 ]; then
-	echo "${0##*/}: ERROR: unitd not running"
-	exit 1
-elif [ ${#PID[@]} -gt 1 ]; then
-	echo "${0##*/}: ERROR: multiple unitd processes detected (${PID[@]})"
-	exit 1
-fi
 
 # Read the significant unitd conifuration from cache file (or create it)
 #
