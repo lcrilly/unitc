@@ -10,7 +10,9 @@ SHOW_LOG=1
 URI=""
 
 usage() {
-  echo "usage"
+	echo "-h: This message"
+	echo "-m: <method> GET / PUT / POST / DELETE / INSERT"
+	echo "-u: <uri> URI or unit config path"
 }
 
 check_unit_running() {
@@ -26,7 +28,7 @@ check_unit_running() {
   fi
 }
 
-while getopts ":h:q:m:uri" o; do
+while getopts "m:u:h" o; do
     case "${o}" in
         h)
             usage
@@ -34,12 +36,17 @@ while getopts ":h:q:m:uri" o; do
         m)
             METHOD=$(echo ${OPTARG} | tr '[a-z]' '[A-Z]')
             ;;
+	u)
+	    URI=${OPTARG}
+	    ;;
         *)
             usage
             ;;
     esac
 done
 shift $((OPTIND-1))
+
+check_unit_running
 
 #if [ -z "${s}" ] || [ -z "${p}" ]; then
 #    usage
