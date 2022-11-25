@@ -129,7 +129,8 @@ else
                 fi
         # This is where we pass in ip and port
 	else
-                CURL_ADDR="http://${REMOTE_IP}:${REMOTE_PORT}"
+                CURL_ADDR="http://$CTRL_ADDR"
+                #CURL_ADDR="http://${REMOTE_IP}:${REMOTE_PORT}"
 	fi
 
 	# Get error log filename
