@@ -127,10 +127,19 @@ else
 	        		exit 2
 	        	fi
                 fi
+                # If we run locally on the unit server, but the control address is 0.0.0.0 curl will fail
+                LOCAL_IP_AND_PORT=$(echo $CTRL_ADDR | grep -c ':')
+                if [ $LOCAL_IP_AND_PORT -eq 1 ] 
+                then
+                  echo "${0##*/}: INFO: running locally, unit is bound to ip and port combination"
+                  LOCAL_IP=$(echo $LOCAL_IP_AND_PORT | cut -d ':' -f1)
+                  LOCAL_PORT=$(echo $LOCAL_IP_AND_PORT | cut -d ':' -f2)
+            
+                fi
+               
         # This is where we pass in ip and port
 	else
-                CURL_ADDR="http://$CTRL_ADDR"
-                #CURL_ADDR="http://${REMOTE_IP}:${REMOTE_PORT}"
+                CURL_ADDR="http://${REMOTE_IP}:${REMOTE_PORT}"
 	fi
 
 	# Get error log filename
