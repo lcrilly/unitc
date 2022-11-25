@@ -134,6 +134,11 @@ fi
                   echo "${0##*/}: INFO: running locally, unit is bound to ip and port combination"
                   LOCAL_IP=$(echo ${CTRL_ADDR} | cut -d ':' -f1)
                   LOCAL_PORT=$(echo ${CTRL_ADDR} | cut -d ':' -f2)
+                  if [ $LOCAL_IP = "0.0.0.0" ]
+                  then 
+                      LOCAL_IP="127.0.0.1"
+                  fi
+                  CURL_ADDR="http://${LOCAL_IP}:${LOCAL_PORT}"
                 fi
                
         # This is where we pass in ip and port
