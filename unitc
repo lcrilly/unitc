@@ -5,11 +5,10 @@
 # Defaults
 #
 QUIET=0
-#METHOD=PUT
 BOLD=$(tput smso)
 NORM=$(tput rmso)
 SHOW_LOG=1
-#URI=""
+IS_REMOTE=0
 
 usage() {
         if [ $# -gt 0 ]
@@ -45,14 +44,14 @@ check_unit_running() {
   PID=($(ps ax | grep unit:\ main | grep -v \ grep | awk '{print $1}'))
   if [ ${#PID[@]} -eq 0 ]; then
   	echo "${0##*/}: INFO: unitd not running locally.... assuming remote"
-        IS_REMOTE=true
+        IS_REMOTE=1
   	#echo "${0##*/}: ERROR: unitd not running"
   	#exit 1
   elif [ ${#PID[@]} -gt 1 ]; then
   	echo "${0##*/}: ERROR: multiple unitd processes detected (${PID[@]})"
   	exit 1
   else 
-        IS_REMOTE=false
+        IS_REMOTE=0
   fi
 }
 
@@ -77,38 +76,19 @@ while getopts "i:m:p:u:h" o; do
     esac
 done
 [ $# = 0 ] && usage
-[ -z "$METHOD" ] && usage method
+[ -z "$METHOD" ] && METHOD="GET"
 [ -z "$URI" ] && usage uri
 
-shift $((OPTIND-1))
+#shift $((OPTIND-1))
 
 check_unit_running
-[[ -z "${REMOTE_IP}" ]] && echo "foo"
-[[ -z "${REMOTE_PORT}" ]] && echo "foo"
-echo $REMOTE_HOST
-echo $REMOTE_IP
-echo $REMOTE_PORT
-
-#if [ -z "${s}" ] || [ -z "${p}" ]; then
-#    usage
-#fi
-
-
-#if [ "$URI" = "" ]; then
-#	echo "USAGE: ${0##*/} [--quiet] [HTTP method] URI"
-#	echo ""
-#	echo " URI is for the Unit configuration API, e.g. /config"
-#	echo " --quiet (-q) Will not monitor the error log after config changes"
-#	echo ""
-#	echo " • Configuration JSON is read from stdin"
-#	echo " • Default HTTP method is PUT for config changes, else GET"
-#	echo " • Virtual method INSERT adds to beginning of array"
-#	echo " • Options can appear in any position, e.g. method after URI"
-#	echo " • The control socket is automatically detected"
-#	echo ""
-#	exit 1
-#fi
-
+if [ $IS_REMOTE -eq 1 ]
+then
+  # If we are using a remote connection then we will need to have both the IP and the port.
+  # There is no checking of proper quad notation for IP address
+  [ -z "$REMOTE_IP" ] && usage "remote IP address"
+  [ -z "$REMOTE_PORT" ] && usage "port"
+fi
 
 # Read the significant unitd conifuration from cache file (or create it)
 #
@@ -124,7 +104,7 @@ else
 	fi
 
 #### Only do this is REMOTE not true
-        if [ "$IS_REMOTE" = "false" ] ; then
+        if [ "$IS_REMOTE" -eq 1 ] ; then
 	        PARAMS=$(ps $PID | grep unitd | cut -f2- -dv | tr '[]' ' ' | cut -f4- -d ' ' | sed -e 's/ --/\n--/g')
 
 	        # Get control address
@@ -146,10 +126,8 @@ else
 	        		exit 2
 	        	fi
                 fi
-        #fi ## end of IS_REMOTE check
-#### This is where we pass in ip and port
+        # This is where we pass in ip and port
 	else
-	     	#CURL_ADDR="http://$CTRL_ADDR"
                 CURL_ADDR="http://${REMOTE_IP}:${REMOTE_PORT}"
 	fi
 
