@@ -105,7 +105,7 @@ else
 	fi
 
         # Only do this is REMOTE not true means that unitc is not running locally
-        if [ "$IS_REMOTE" -eq 1 ] ; then
+        if [ "$IS_REMOTE" -eq 0 ] ; then
 	        PARAMS=$(ps $PID | grep unitd | cut -f2- -dv | tr '[]' ' ' | cut -f4- -d ' ' | sed -e 's/ --/\n--/g')
 
 	        # Get control address
