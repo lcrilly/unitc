@@ -93,9 +93,9 @@ fi
 
 # Read the significant unitd conifuration from cache file (or create it)
 #
-if [ -r /tmp/${0##*/}.$PID.env ]; then
-	source /tmp/${0##*/}.$PID.env
-else
+#if [ -r /tmp/${0##*/}.$PID.env ]; then
+#	source /tmp/${0##*/}.$PID.env
+#else
 	# Check we have all the tools we need in $PATH
 	#
 	MISSING=$(hash unitd curl ps grep cut tr sed tail sleep 2>&1 | cut -f4 -d: | tr -d '\n')
@@ -153,7 +153,7 @@ else
 	rm /tmp/${0##*/}.* 2> /dev/null
 	echo CURL_ADDR=\"${CURL_ADDR}\" > /tmp/${0##*/}.$PID.env
 	echo ERROR_LOG=${ERROR_LOG} >> /tmp/${0##*/}.$PID.env
-fi
+#fi
 
 # Test for jq
 #
