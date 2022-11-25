@@ -127,7 +127,7 @@ fi
 	        	fi
                 fi
                 # If we run locally on the unit server, but the control address is 0.0.0.0 curl will fail
-                LOCAL_IP_AND_PORT=$(echo $CTRL_ADDR | grep -c ':')
+                LOCAL_IP_AND_PORT=$(echo $CTRL_ADDR | grep -v unix | grep -c ':')
                 if [ $LOCAL_IP_AND_PORT -eq 1 ] 
                 then
                   echo "${0##*/}: INFO: running locally, unit is bound to ip and port combination"
