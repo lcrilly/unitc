@@ -1,13 +1,9 @@
 unitc
 =====
 
-A curl wrapper for configuring NGINX Unit
------------------------------------------
+## A curl wrapper for configuring NGINX Unit
 
-Just provide the configuration URI (e.g. `/config/routes`) and **unitc** will
-find the control socket to construct the full address in curl syntax.
-
-```USAGE: unitc [HTTP method] [--quiet] URI```
+```USAGE: unitc [--quiet] [HTTP method] URI```
 
 Providing a JSON configuration on stdin will use the PUT method unless a specific
 method is provided. Otherwise a GET is used to read the configuration. A virtual
@@ -16,6 +12,19 @@ HTTP methods can be specified in lower case.
 
 [jq](https://stedolan.github.io/jq/) is used to prettify the output, if available.
 Required if using the INSERT method.
+
+Command line options can be specified in any order. For example, a redundant part
+of the configuration can be located by URI and appended with `delete` in a subsequent
+invocation.
+```shell
+unitc /config/routes/0
+unitc /config/routes/0 delete
+```
+
+### Local configuration
+
+Just provide the configuration URI (e.g. `/config/routes`) and **unitc** will
+find the control socket to construct the full address in curl syntax.
 
 When making changes, the error log is monitored and new log entries are shown.
 
@@ -29,10 +38,19 @@ unitc /config < unitconf.json
 unitc delete /config/applications/wp
 ```
 
-Command line options can be specified in any order. For example, a redundant part
-of the configuration can be located by URI and appended with `delete` in a subsequent
-invocation.
+### Remote configuration
+
+The configuration of a remote Unit instance can be controlled by specifying the
+URI as a complete URL (with protocol).
+
+Alternatively, the remote control socket can be set with the
+`$UNIT_CTRL` environment variable.
+
+Examples:
 ```shell
-unitc /config/routes/0
-unitc /config/routes/0 delete
+unitc http://192.168.0.1:8080/config
+UNIT_CTRL=http:////192.168.0.1:8080 unitc /config
+
+export UNIT_CTRL=http://192.168.0.1:8080
+echo '{"match": {"uri":"/foo"}, "action": {"pass":"applications/foo"}}'| unitc /config/routes insert
 ```
