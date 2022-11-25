@@ -161,6 +161,8 @@ else
 	QUIET=1
 fi
 
+set -x
+
 # Adjust HTTP method and curl params based on presence of stdin payload
 #
 if [ -t 0 ]; then
@@ -207,5 +209,3 @@ if [ $SHOW_LOG -gt 0 ] && [ $QUIET -eq 0 ]; then
 	echo ""
 	sed -n $((LOG_LEN+1)),\$p $ERROR_LOG
 fi
-
-# vim: syntax=bash
