@@ -104,7 +104,7 @@ else
 		exit 1
 	fi
 
-        # Only do this is REMOTE not true means that unitc is not running locally
+        # Only do this if IS_REMOTE is not true, this means that unitc is running locally on the unit server
         if [ "$IS_REMOTE" -eq 0 ] ; then
 	        PARAMS=$(ps $PID | grep unitd | cut -f2- -dv | tr '[]' ' ' | cut -f4- -d ' ' | sed -e 's/ --/\n--/g')
 
