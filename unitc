@@ -75,6 +75,7 @@ while getopts "i:m:p:u:h" o; do
             ;;
     esac
 done
+set -x
 [ $# = 0 ] && usage
 [ -z "$METHOD" ] && METHOD="GET"
 [ -z "$URI" ] && usage uri
@@ -103,7 +104,7 @@ else
 		exit 1
 	fi
 
-#### Only do this is REMOTE not true
+        # Only do this is REMOTE not true means that unitc is not running locally
         if [ "$IS_REMOTE" -eq 1 ] ; then
 	        PARAMS=$(ps $PID | grep unitd | cut -f2- -dv | tr '[]' ' ' | cut -f4- -d ' ' | sed -e 's/ --/\n--/g')
 
@@ -160,8 +161,6 @@ if [ -f $ERROR_LOG ] && [ -r $ERROR_LOG ]; then
 else
 	QUIET=1
 fi
-
-set -x
 
 # Adjust HTTP method and curl params based on presence of stdin payload
 #
