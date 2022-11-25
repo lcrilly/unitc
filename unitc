@@ -75,7 +75,6 @@ while getopts "i:m:p:u:h" o; do
             ;;
     esac
 done
-set -x
 [ $# = 0 ] && usage
 [ -z "$METHOD" ] && METHOD="GET"
 [ -z "$URI" ] && usage uri
