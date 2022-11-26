@@ -38,6 +38,11 @@ while [ $# -gt 0 ]; do
 			if [ "${1:0:1}" = "/" ] || [ "${1:0:4}" = "http" ]; then
 				URI=$1
 				shift
+			elif [ "${1:0:6}" = "ssh://" ]; then
+				REMOTE=1
+				SSH_CMD="ssh $(echo $1 | tr '/:' ' ' | cut -f4 -d ' ')"
+				UNIT_CTRL="--unix-socket /$(echo $1 | cut -f4- -d/) _"
+				shift
 			else
 				echo "${0##*/}: ERROR: Invalid option ($1)"
 				exit 1
@@ -49,10 +54,11 @@ done
 if [ "$URI" = "" ]; then
 	echo "${0##*/} - a curl wrapper for configuring NGINX Unit"
 	echo ""
-	echo "USAGE: ${0##*/} [--quiet] [HTTP method] URI"
+	echo "USAGE: ${0##*/} [--quiet] [ssh://remote:/socket] [HTTP method] URI"
 	echo ""
 	echo " URI is for the Unit configuration API, e.g. /config"
-	echo " URI with protocol (e.g. http://...) can be used for remote configuration"
+	echo " URI with protocol (e.g. http://…) can be used for remote configuration"
+	echo " Remote configuration is plaintext and insecure unless using ssh://…"
 	echo ""
 	echo " The control socket is automatically detected for local installations."
 	echo " Remote control socket may be set using \$UNIT_CTRL environment variable as:"
@@ -210,5 +216,3 @@ if [ $SHOW_LOG -gt 0 ] && [ $QUIET -eq 0 ]; then
 	echo ""
 	sed -n $((LOG_LEN+1)),\$p $ERROR_LOG
 fi
-
-# vim: syntax=bash

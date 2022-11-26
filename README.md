@@ -3,7 +3,7 @@ unitc
 
 ## A curl wrapper for configuring NGINX Unit
 
-```USAGE: unitc [--quiet] [HTTP method] URI```
+```USAGE: unitc [--quiet] [ssh://remote:/socket] [HTTP method] URI```
 
 Providing a JSON configuration on stdin will use the PUT method unless a specific
 method is provided. Otherwise a GET is used to read the configuration. A virtual
@@ -41,7 +41,7 @@ unitc delete /config/applications/wp
 ### Remote configuration
 
 The configuration of a remote Unit instance can be controlled by specifying the
-URI as a complete URL (with protocol).
+control socket as ssh://… or with a URI complete with protocol (http://…).
 
 Alternatively, the remote control socket can be set with the
 `$UNIT_CTRL` environment variable.
