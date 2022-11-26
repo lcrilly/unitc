@@ -10,6 +10,7 @@ QUIET=0
 METHOD=PUT
 SHOW_LOG=1
 URI=""
+SSH_CMD=""
 
 while [ $# -gt 0 ]; do
 	OPTION=$(echo $1 | tr '[a-z]' '[A-Z]')
@@ -52,14 +53,16 @@ if [ "$URI" = "" ]; then
 	echo ""
 	echo " URI is for the Unit configuration API, e.g. /config"
 	echo " URI with protocol (e.g. http://...) can be used for remote configuration"
-	echo " --quiet (-q) Will not monitor the error log after config changes"
 	echo ""
-	echo " • Environment variable \$UNIT_CTRL may specify remote host"
+	echo " The control socket is automatically detected for local installations."
+	echo " Remote control socket may be set using \$UNIT_CTRL environment variable as:"
+	echo "  http://remote_host:port  -OR-  ssh://user@remote_host:/path/to/control.sock"
+	echo ""
 	echo " • Configuration JSON is read from stdin"
 	echo " • Default HTTP method is PUT for config changes, else GET"
 	echo " • Virtual method INSERT adds to beginning of array"
 	echo " • Options can appear in any position, e.g. method after URI"
-	echo " • The control socket is automatically detected for local installations"
+	echo " • Error log is monitored for changes when local, unless --quiet (-q)"
 	echo ""
 	exit 1
 fi
@@ -72,6 +75,10 @@ if [ "$UNIT_CTRL" = "" ]; then
 		UNIT_CTRL=$(echo "$URI" | cut -f1-3 -d/)
 		URI=/$(echo "$URI" | cut -f4- -d/)
 	fi
+elif [ "${UNIT_CTRL:0:6}" = "ssh://" ]; then
+	REMOTE=1
+	SSH_CMD="ssh $(echo $UNIT_CTRL | tr '/:' ' ' | cut -f4 -d ' ')"
+	UNIT_CTRL="--unix-socket /$(echo $UNIT_CTRL | cut -f4- -d/) _"
 elif [ "${URI:0:1}" = "/" ]; then
 	REMOTE=1
 fi
@@ -160,10 +167,10 @@ fi
 #
 if [ -t 0 ]; then
 	if [ "$METHOD" = "DELETE" ]; then
-		curl -X $METHOD $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
+		$SSH_CMD curl -X $METHOD $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
 	else
 		SHOW_LOG=$(echo $URI | grep -c ^/control/)
-		curl $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
+		$SSH_CMD curl $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
 	fi
 else
 	if [ "$METHOD" = "INSERT" ]; then
@@ -171,16 +178,16 @@ else
 			echo "${0##*/}: ERROR: jq(1) is required to use INSERT method, install at <https://stedolan.github.io/jq/>"
 			exit 1
 		fi
-		CURR_VAL=$(curl -s $UNIT_CTRL$URI)
+		SUFFIX=$(cat) # Preserve stdin
+		CURR_VAL=$($SSH_CMD curl -s $UNIT_CTRL$URI)
 		if [ "$(echo $CURR_VAL | jq -r type)" = "array" ]; then
-			SUFFIX=$(cat)
-			echo $CURR_VAL | jq ". |= [$SUFFIX] + ." | curl -X PUT --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
+			echo $CURR_VAL | jq ". |= [$SUFFIX] + ." | $SSH_CMD curl -X PUT --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
 		else
 			echo "${0##*/}: ERROR: INSERT method must be used with an array"
 			exit 3
 		fi
 	else
-		echo "$(cat)" | curl -X $METHOD --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
+		echo "$(cat)" | $SSH_CMD curl -X $METHOD --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
 	fi
 fi
 
