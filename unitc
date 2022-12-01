@@ -40,9 +40,7 @@ while [ $# -gt 0 ]; do
 				URI=$1
 				shift
 			elif [ "${1:0:6}" = "ssh://" ]; then
-				REMOTE=1
-				SSH_CMD="ssh $(echo $1 | tr '/:' ' ' | cut -f4 -d ' ')"
-				UNIT_CTRL="--unix-socket /$(echo $1 | cut -f4- -d/) _"
+				UNIT_CTRL=$1
 				shift
 			else
 				echo "${0##*/}: ERROR: Invalid option ($1)"
@@ -55,15 +53,17 @@ done
 if [ "$URI" = "" ]; then
 	echo "${0##*/} - a curl wrapper for configuring NGINX Unit"
 	echo ""
-	echo "USAGE: ${0##*/} [--quiet] [ssh://[user@]host/path/to/socket] [HTTP method] URI"
+	echo "USAGE: ${0##*/} [--quiet] [ssh://…] [HTTP method] URI"
 	echo ""
 	echo " URI is for the Unit configuration API, e.g. /config"
 	echo " URI with protocol (e.g. http://…) can be used for remote configuration"
-	echo " Remote configuration is plaintext and insecure unless using ssh://…"
+	echo " Remote configuration is plaintext and insecure unless using ssh://… as"
+	echo "  ssh://[user@]remote_host:unit_control_port (for TCP sockets) or"
+	echo "  ssh://[user@]remote_host/path/to/control.socket (for Unix sockets)"
 	echo ""
 	echo " The control socket is automatically detected for local installations."
 	echo " Remote control socket may be set using \$UNIT_CTRL environment variable as:"
-	echo "  http://remote_host:port  -OR-  ssh://[user@]remote_host/path/to/control.sock"
+	echo "  http://remote_host:port  -OR-  ssh://…"
 	echo ""
 	echo " • Configuration JSON is read from stdin"
 	echo " • Default HTTP method is PUT for config changes, else GET"
@@ -84,8 +84,14 @@ if [ "$UNIT_CTRL" = "" ]; then
 	fi
 elif [ "${UNIT_CTRL:0:6}" = "ssh://" ]; then
 	REMOTE=1
-	SSH_CMD="ssh $(echo $UNIT_CTRL | tr '/:' ' ' | cut -f4 -d ' ')"
-	UNIT_CTRL="--unix-socket /$(echo $UNIT_CTRL | cut -f4- -d/) _"
+	SSH_ADDR=($(echo "${UNIT_CTRL:6}" | tr :/ ' '))
+	SSH_CMD="ssh $(echo ${SSH_ADDR[0]})"
+	SSH_SOCKET=${SSH_ADDR[@]:1}
+	if [ "${SSH_SOCKET//[0-9]}" = "" ]; then
+		UNIT_CTRL="http://localhost:$SSH_SOCKET"
+	else
+		UNIT_CTRL="--unix-socket /$(echo ${SSH_ADDR[@]:1} | tr ' ' /) _"
+	fi
 elif [ "${URI:0:1}" = "/" ]; then
 	REMOTE=1
 fi

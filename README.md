@@ -3,7 +3,7 @@ unitc
 
 ## A curl wrapper for configuring NGINX Unit
 
-```USAGE: unitc [--quiet] [ssh://[user@]remote_host/path/to/socket] [HTTP method] URI```
+```USAGE: unitc [--quiet] [ssh://…] [HTTP method] URI```
 
 Providing a JSON configuration on stdin will use the PUT method unless a specific
 method is provided. Otherwise a GET is used to read the configuration. A virtual
@@ -42,6 +42,13 @@ unitc delete /config/applications/wp
 
 The configuration of a remote Unit instance can be controlled by specifying the
 control socket as ssh://… or with a URI complete with protocol (http://…).
+
+Using ssh:// is recommended for remote connections to avoid insecure
+communications over shared networks. This can be used when the control socket
+is listening on a TCP port or Unix socket using ssh(1)/scp(1) syntax:
+
+* `ssh://[user@]remote_host:unit_control_port`
+* `ssh://[user@]remote_host/path/to/control.socket`
 
 Alternatively, the remote control socket can be set with the
 `$UNIT_CTRL` environment variable.
