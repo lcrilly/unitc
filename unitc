@@ -1,5 +1,6 @@
 #!/bin/bash
 # unitc - a curl wrapper for configuring NGINX Unit
+# https://github.com/nginx/unit/tree/master/tools
 # NGINX, Inc. (c) 2022
 
 # Defaults
@@ -54,7 +55,7 @@ done
 if [ "$URI" = "" ]; then
 	echo "${0##*/} - a curl wrapper for configuring NGINX Unit"
 	echo ""
-	echo "USAGE: ${0##*/} [--quiet] [ssh://remote:/socket] [HTTP method] URI"
+	echo "USAGE: ${0##*/} [--quiet] [ssh://[user@]host/path/to/socket] [HTTP method] URI"
 	echo ""
 	echo " URI is for the Unit configuration API, e.g. /config"
 	echo " URI with protocol (e.g. http://…) can be used for remote configuration"
@@ -62,7 +63,7 @@ if [ "$URI" = "" ]; then
 	echo ""
 	echo " The control socket is automatically detected for local installations."
 	echo " Remote control socket may be set using \$UNIT_CTRL environment variable as:"
-	echo "  http://remote_host:port  -OR-  ssh://user@remote_host:/path/to/control.sock"
+	echo "  http://remote_host:port  -OR-  ssh://[user@]remote_host/path/to/control.sock"
 	echo ""
 	echo " • Configuration JSON is read from stdin"
 	echo " • Default HTTP method is PUT for config changes, else GET"
@@ -184,16 +185,16 @@ else
 			echo "${0##*/}: ERROR: jq(1) is required to use INSERT method, install at <https://stedolan.github.io/jq/>"
 			exit 1
 		fi
-		SUFFIX=$(cat) # Preserve stdin
-		CURR_VAL=$($SSH_CMD curl -s $UNIT_CTRL$URI)
-		if [ "$(echo $CURR_VAL | jq -r type)" = "array" ]; then
-			echo $CURR_VAL | jq ". |= [$SUFFIX] + ." | $SSH_CMD curl -X PUT --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
+		NEW_ELEMENT=$(cat) # Preserve stdin
+		OLD_ARRAY=$($SSH_CMD curl -s $UNIT_CTRL$URI)
+		if [ "$(echo $OLD_ARRAY | jq -r type)" = "array" ]; then
+			echo $OLD_ARRAY | jq ". |= [$NEW_ELEMENT] + ." | $SSH_CMD curl -X PUT --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
 		else
 			echo "${0##*/}: ERROR: INSERT method must be used with an array"
 			exit 3
 		fi
 	else
-		echo "$(cat)" | $SSH_CMD curl -X $METHOD --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
+		$SSH_CMD curl -X $METHOD --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
 	fi
 fi
 

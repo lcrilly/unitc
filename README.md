@@ -3,7 +3,7 @@ unitc
 
 ## A curl wrapper for configuring NGINX Unit
 
-```USAGE: unitc [--quiet] [ssh://remote:/socket] [HTTP method] URI```
+```USAGE: unitc [--quiet] [ssh://[user@]remote_host/path/to/socket] [HTTP method] URI```
 
 Providing a JSON configuration on stdin will use the PUT method unless a specific
 method is provided. Otherwise a GET is used to read the configuration. A virtual
@@ -49,8 +49,8 @@ Alternatively, the remote control socket can be set with the
 Examples:
 ```shell
 unitc http://192.168.0.1:8080/config
-UNIT_CTRL=http:////192.168.0.1:8080 unitc /config
+UNIT_CTRL=http://192.168.0.1:8080 unitc /config
 
-export UNIT_CTRL=http://192.168.0.1:8080
+export UNIT_CTRL=ssh://root@unithost/var/run/control.unit.sock
 echo '{"match": {"uri":"/foo"}, "action": {"pass":"applications/foo"}}'| unitc /config/routes insert
 ```
