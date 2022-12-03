@@ -94,7 +94,7 @@ if [ $REMOTE -eq 0 ]; then
 	#
 	PID=($(ps ax | grep unit:\ main | grep -v \ grep | awk '{print $1}'))
 	if [ ${#PID[@]} -eq 0 ]; then
-		echo "${0##*/}: ERROR: unitd not running"
+		echo "${0##*/}: ERROR: unitd not running (set \$UNIT_CTRL to configure a remote instance)"
 		exit 1
 	elif [ ${#PID[@]} -gt 1 ]; then
 		echo "${0##*/}: ERROR: multiple unitd processes detected (${PID[@]})"
