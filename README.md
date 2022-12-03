@@ -3,15 +3,16 @@ unitc
 
 ## A curl wrapper for configuring NGINX Unit
 
-```USAGE: unitc [--quiet] [ssh://…] [HTTP method] URI```
+```USAGE: unitc [--quiet] [ssh://…] [file …] [HTTP method] URI```
 
-Providing a JSON configuration on stdin will use the PUT method unless a specific
-method is provided. Otherwise a GET is used to read the configuration. A virtual
-method INSERT can be used to prepend data when the URI specifies an existing array. 
-HTTP methods can be specified in lower case.
+Configuration can be supplied on stdin or the concatenation of the specified
+filename(s). The PUT method is used for configuration unless a specific
+method is provided. Otherwise a GET is used to read the configuration. A
+virtual method INSERT can be used to prepend data when the URI specifies an
+existing array. HTTP methods can be specified in lower case.
 
-[jq](https://stedolan.github.io/jq/) is used to prettify the output, if available.
-Required if using the INSERT method.
+[jq](https://stedolan.github.io/jq/) is used to prettify the output, if
+available. Required if using the INSERT method.
 
 Command line options can be specified in any order. For example, a redundant part
 of the configuration can be located by URI and appended with `delete` in a subsequent
@@ -36,6 +37,7 @@ unitc /control/applications/my_app/restart
 echo '{"*:8080": {"pass": "routes"}}' | unitc /config/listeners
 unitc /config < unitconf.json
 unitc delete /config/applications/wp
+unitc /certificates/bundle cert.pem key.pem
 ```
 
 ### Remote configuration

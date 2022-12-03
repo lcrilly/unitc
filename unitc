@@ -12,6 +12,7 @@ METHOD=PUT
 SHOW_LOG=1
 URI=""
 SSH_CMD=""
+CONF_FILES=()
 
 while [ $# -gt 0 ]; do
 	OPTION=$(echo $1 | tr '[a-z]' '[A-Z]')
@@ -36,16 +37,17 @@ while [ $# -gt 0 ]; do
 			;;
 
 		*)
-			if [ "${1:0:1}" = "/" ] || [ "${1:0:4}" = "http" ]; then
+			if [ -r $1 ]; then
+				CONF_FILES+=($1)
+			elif [ "${1:0:1}" = "/" ] || [ "${1:0:4}" = "http" ]; then
 				URI=$1
-				shift
 			elif [ "${1:0:6}" = "ssh://" ]; then
 				UNIT_CTRL=$1
-				shift
 			else
 				echo "${0##*/}: ERROR: Invalid option ($1)"
 				exit 1
 			fi
+			shift
 			;;
 	esac
 done
@@ -53,7 +55,7 @@ done
 if [ "$URI" = "" ]; then
 	echo "${0##*/} - a curl wrapper for configuring NGINX Unit"
 	echo ""
-	echo "USAGE: ${0##*/} [--quiet] [ssh://…] [HTTP method] URI"
+	echo "USAGE: ${0##*/} [--quiet] [ssh://…] [file …] [HTTP method] URI"
 	echo ""
 	echo " URI is for the Unit control API object, e.g. /config"
 	echo " A local Unit control socket is detected unless specifying a network address:"
@@ -63,7 +65,7 @@ if [ "$URI" = "" ]; then
 	echo " A remote Unit control socket may also be defined with the \$UNIT_CTRL"
 	echo " environment variable as http://remote_host:port  -OR-  ssh://…"
 	echo ""
-	echo " • Configuration JSON is read from stdin"
+	echo " • Configuration JSON is read from stdin or specified filename(s)"
 	echo " • Default HTTP method is PUT for config changes, else GET"
 	echo " • Virtual method INSERT adds to beginning of array"
 	echo " • Options can appear in any position, e.g. method after URI"
@@ -171,7 +173,7 @@ fi
 
 # Adjust HTTP method and curl params based on presence of stdin payload
 #
-if [ -t 0 ]; then
+if [ -t 0 ] && [ ${#CONF_FILES[@]} -eq 0 ]; then
 	if [ "$METHOD" = "DELETE" ]; then
 		$SSH_CMD curl -X $METHOD $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
 	else
@@ -184,7 +186,7 @@ else
 			echo "${0##*/}: ERROR: jq(1) is required to use INSERT method, install at <https://stedolan.github.io/jq/>"
 			exit 1
 		fi
-		NEW_ELEMENT=$(cat) # Preserve stdin
+		NEW_ELEMENT=$(cat ${CONF_FILES[@]})
 		OLD_ARRAY=$($SSH_CMD curl -s $UNIT_CTRL$URI)
 		if [ "$(echo $OLD_ARRAY | jq -r type)" = "array" ]; then
 			echo $OLD_ARRAY | jq ". |= [$NEW_ELEMENT] + ." | $SSH_CMD curl -X PUT --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
@@ -193,7 +195,7 @@ else
 			exit 3
 		fi
 	else
-		$SSH_CMD curl -X $METHOD --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
+		cat ${CONF_FILES[@]} | $SSH_CMD curl -X $METHOD --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
 	fi
 fi
 
