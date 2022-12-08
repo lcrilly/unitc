@@ -1,64 +1,67 @@
 unitc
 =====
 
-## A curl wrapper for configuring NGINX Unit
+### A curl wrapper for managing NGINX Unit configuration
 
-```USAGE: unitc [--quiet] [ssh://…] [file …] [HTTP method] URI```
+```USAGE: unitc [options] URI```
 
-Configuration can be supplied on stdin or the concatenation of the specified
-filename(s). The PUT method is used for configuration unless a specific
-method is provided. Otherwise a GET is used to read the configuration. A
-virtual method INSERT can be used to prepend data when the URI specifies an
-existing array. HTTP methods can be specified in lower case.
+ * **URI** specifies an object of the Unit control API, e.g. `/config` .
+ * Configuration data is read from stdin, if present.
+ * [jq](https://stedolan.github.io/jq/) is used to prettify JSON output, if
+available.
 
-[jq](https://stedolan.github.io/jq/) is used to prettify the output, if
-available. Required if using the INSERT method.
+| Options ||
+|-|-|
+| filename … | Read configuration data by concatenating the specified filename(s) instead of reading from stdin. 
+| _HTTP method_ | It is usually not required to specify a HTTP method. `GET` is used to read the configuration. `PUT` is used when making configuration changes unless a specific method is provided.
+| `INSERT` | A _virtual_ HTTP method that prepends data when the URI specifies an existing array. The [jq](https://stedolan.github.io/jq/) tool is required for this option.
+| `-q` \| `--quiet` | No output to stdout
 
-Command line options can be specified in any order. For example, a redundant part
-of the configuration can be located by URI and appended with `delete` in a subsequent
-invocation.
-```shell
-unitc /config/routes/0
-unitc /config/routes/0 delete
-```
+Command line options are case-insensitive and can be specified in any
+order. For example, a redundant part of the configuration can be located
+by URI and appended with `delete` in a subsequent invocation.
 
-### Local configuration
+### Local Configuration
+For local instances of NGINX Unit, the control socket is automatically detected. When making changes, the error log is monitored and new log entries are shown.
 
-Just provide the configuration URI (e.g. `/config/routes`) and **unitc** will
-find the control socket to construct the full address in curl syntax.
+| Options ||
+|-|-|
+| `-l` \| `--nolog` | Do not monitor the error log after applying config changes.
 
-When making changes, the error log is monitored and new log entries are shown.
-
-Examples:
-
+#### Examples
 ```shell
 unitc /config
 unitc /control/applications/my_app/restart
-echo '{"*:8080": {"pass": "routes"}}' | unitc /config/listeners
 unitc /config < unitconf.json
-unitc delete /config/applications/wp
+echo '{"*:8080": {"pass": "routes"}}' | unitc /config/listeners
+unitc /config/applications/my_app DELETE
 unitc /certificates/bundle cert.pem key.pem
 ```
 
-### Remote configuration
+### Remote Configuration
+For remote instances of NGINX Unit, the control socket on the remote host can
+be set with the `$UNIT_CTRL` environment variable. The remote control socket
+can be accessed over TCP or SSH, depending on the type of control socket:
 
-The configuration of a remote Unit instance can be controlled by specifying the
-control socket as ssh://… or with a URI complete with protocol (http://…).
+ * `ssh://[user@]remote_host[:ssh_port]/path/to/control.socket`
+ * `http://remote_host:unit_control_port`
 
-Using ssh:// is recommended for remote connections to avoid insecure
-communications over shared networks using ssh(1)/scp(1) syntax. This can
-only be used when the remote control socket is listening on a Unix socket.
+> **Note:** SSH is recommended for remote confguration. Consider the
+> [security implications](https://unit.nginx.org/howto/security/#secure-socket-and-state)
+> of managing remote configuration over plaintext HTTP.
 
-> `ssh://[user@]remote_host[:port]/path/to/control.socket`
+| Options ||
+|-|-|
+| `ssh://…` | Specify the remote Unix control socket on the command line.
+| `http://…`*URI* | For remote TCP control sockets, the URI may include the protocol, hostname, and port.
 
-Alternatively, the remote control socket can be set with the
-`$UNIT_CTRL` environment variable.
-
-Examples:
+#### Examples
 ```shell
-unitc http://192.168.0.1:8080/config
-UNIT_CTRL=http://192.168.0.1:8080 unitc /config
+unitc http://192.168.0.1:8080/status
+UNIT_CTRL=http://192.168.0.1:8080 unitc /status
 
 export UNIT_CTRL=ssh://root@unithost/var/run/control.unit.sock
-echo '{"match": {"uri":"/foo"}, "action": {"pass":"applications/foo"}}'| unitc /config/routes insert
+unitc /config/routes
+cat catchall_route.json | unitc POST /config/routes
+echo '{"match":{"uri":"/wp-admin/*"},"action":{"return":403}}' | unitc INSERT /config/routes
 ```

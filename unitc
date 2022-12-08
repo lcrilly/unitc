@@ -7,17 +7,23 @@
 #
 ERROR_LOG=/dev/null
 REMOTE=0
-QUIET=0
-METHOD=PUT
 SHOW_LOG=1
+NOLOG=0
+QUIET=0
 URI=""
 SSH_CMD=""
+METHOD=PUT
 CONF_FILES=()
 
 while [ $# -gt 0 ]; do
 	OPTION=$(echo $1 | tr '[a-z]' '[A-Z]')
 	case $OPTION in
 		"-H" | "--HELP")
+			shift
+			;;
+
+		"-L" | "--NOLOG" | "--NO-LOG")
+			NOLOG=1
 			shift
 			;;
 
@@ -39,7 +45,7 @@ while [ $# -gt 0 ]; do
 		*)
 			if [ -r $1 ]; then
 				CONF_FILES+=($1)
-			elif [ "${1:0:1}" = "/" ] || [ "${1:0:4}" = "http" ]; then
+			elif [ "${1:0:1}" = "/" ] || [ "${1:0:4}" = "http" ] && [ "$URI" = "" ]; then
 				URI=$1
 			elif [ "${1:0:6}" = "ssh://" ]; then
 				UNIT_CTRL=$1
@@ -53,24 +59,32 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "$URI" = "" ]; then
-	echo "${0##*/} - a curl wrapper for configuring NGINX Unit"
-	echo ""
-	echo "USAGE: ${0##*/} [--quiet] [ssh://…] [file …] [HTTP method] URI"
-	echo ""
-	echo " URI is for the Unit control API object, e.g. /config"
-	echo " A local Unit control socket is detected unless specifying a network address:"
-	echo "  http://… as part of the URI, or;"
-	echo "  ssh://[user@]remote_host[:port]/path/to/control.socket"
-	echo ""
-	echo " A remote Unit control socket may also be defined with the \$UNIT_CTRL"
-	echo " environment variable as http://remote_host:port  -OR-  ssh://…"
-	echo ""
-	echo " • Configuration JSON is read from stdin or specified filename(s)"
-	echo " • Default HTTP method is PUT for config changes, else GET"
-	echo " • Virtual method INSERT adds to beginning of array"
-	echo " • Options can appear in any position, e.g. method after URI"
-	echo " • Error log is monitored for changes when local, unless --quiet (-q)"
-	echo ""
+	cat << __EOF__
+${0##*/} - a curl wrapper for managing NGINX Unit configuration
+
+USAGE: ${0##*/} [options] URI
+
+• URI is for the Unit control API object, e.g. /config
+• A local Unit control socket is detected unless specifying a remote instance.
+• Configuration data is read from stdin if present.
+
+General options
+  filename …    # Read configuration data from file(s) instead of stdin
+  HTTP method   # Default=GET, or PUT with config data (case insensitive)
+  INSERT        # Virtual HTTP method to prepend data to an existing array
+  -q | --quiet  # No output to stdout
+
+Local options
+  -n | --nolog  # Do not monitor the error log after applying config changes
+
+Remote options
+  ssh://[user@]remote_host[:port]/path/to/control.socket  # Remote Unix socket
+  http://remote_host:port/URI                             # Remote TCP socket
+
+ A remote Unit control socket may also be defined with the \$UNIT_CTRL
+ environment variable as http://remote_host:port  -OR-  ssh://… (as above)
+
+__EOF__
 	exit 1
 fi
 
@@ -84,9 +98,8 @@ if [ "$UNIT_CTRL" = "" ]; then
 	fi
 elif [ "${UNIT_CTRL:0:6}" = "ssh://" ]; then
 	REMOTE=1
-	SSH_ADDR=${UNIT_CTRL:6}
-	SSH_CMD="ssh ssh://${SSH_ADDR%%/*}"
-	UNIT_CTRL="--unix-socket /${SSH_ADDR#*/} _"
+	SSH_CMD="ssh $(echo $UNIT_CTRL | cut -f1-3 -d/)"
+	UNIT_CTRL="--unix-socket /$(echo $UNIT_CTRL | cut -f4- -d/) _"
 elif [ "${URI:0:1}" = "/" ]; then
 	REMOTE=1
 fi
@@ -155,12 +168,14 @@ if [ $REMOTE -eq 0 ]; then
 	fi
 fi
 
-# Test for jq
+# Choose presentation style
 #
-if hash jq 2> /dev/null; then
-	PRETTY="jq"
+if [ $QUIET -eq 1 ]; then
+	OUTPUT="head -c 0"
+elif hash jq 2> /dev/null; then
+	OUTPUT="jq"
 else
-	PRETTY="cat"
+	OUTPUT="cat"
 fi
 
 # Get current length of error log before we make any changes
@@ -168,41 +183,41 @@ fi
 if [ -f $ERROR_LOG ] && [ -r $ERROR_LOG ]; then
 	LOG_LEN=$(wc -l < $ERROR_LOG)
 else
-	QUIET=1
+	NOLOG=1
 fi
 
 # Adjust HTTP method and curl params based on presence of stdin payload
 #
 if [ -t 0 ] && [ ${#CONF_FILES[@]} -eq 0 ]; then
 	if [ "$METHOD" = "DELETE" ]; then
-		$SSH_CMD curl -X $METHOD $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
+		$SSH_CMD curl -X $METHOD $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $OUTPUT
 	else
 		SHOW_LOG=$(echo $URI | grep -c ^/control/)
-		$SSH_CMD curl $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
+		$SSH_CMD curl $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $OUTPUT
 	fi
 else
 	if [ "$METHOD" = "INSERT" ]; then
-		if [ "$PRETTY" != "jq" ]; then
+		if hash jq 2> /dev/null; then
 			echo "${0##*/}: ERROR: jq(1) is required to use INSERT method, install at <https://stedolan.github.io/jq/>"
 			exit 1
 		fi
 		NEW_ELEMENT=$(cat ${CONF_FILES[@]})
 		OLD_ARRAY=$($SSH_CMD curl -s $UNIT_CTRL$URI)
 		if [ "$(echo $OLD_ARRAY | jq -r type)" = "array" ]; then
-			echo $OLD_ARRAY | jq ". |= [$NEW_ELEMENT] + ." | $SSH_CMD curl -X PUT --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
+			echo $OLD_ARRAY | jq ". |= [$NEW_ELEMENT] + ." | $SSH_CMD curl -X PUT --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $OUTPUT
 		else
 			echo "${0##*/}: ERROR: INSERT method must be used with an array"
 			exit 3
 		fi
 	else
-		cat ${CONF_FILES[@]} | $SSH_CMD curl -X $METHOD --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $PRETTY
+		cat ${CONF_FILES[@]} | $SSH_CMD curl -X $METHOD --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $OUTPUT
 	fi
 fi
 
 CURL_STATUS=${PIPESTATUS[0]}
 if [ $CURL_STATUS -ne 0 ]; then
 	echo "${0##*/}: ERROR: curl(1) exited with an error ($CURL_STATUS)"
-	if [ $CURL_STATUS -eq 7 ]; then
+	if [ $CURL_STATUS -eq 7 ] && [ $REMOTE -eq 0 ]; then
 		echo "${0##*/}: Check that you have permission to access the Unit control socket, or try again with sudo(8)"
 	else
 		echo "${0##*/}: Trying to access $UNIT_CTRL$URI"
@@ -212,7 +227,7 @@ if [ $CURL_STATUS -ne 0 ]; then
 fi
 rm /tmp/${0##*/}.$$ 2> /dev/null
 
-if [ $SHOW_LOG -gt 0 ] && [ $QUIET -eq 0 ]; then
+if [ $SHOW_LOG -gt 0 ] && [ $NOLOG -eq 0 ] && [ $QUIET -eq 0 ]; then
 	echo -n "${0##*/}: Waiting for log..."
 	sleep $SHOW_LOG
 	echo ""
