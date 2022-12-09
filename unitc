@@ -171,7 +171,7 @@ fi
 # Choose presentation style
 #
 if [ $QUIET -eq 1 ]; then
-	OUTPUT="head -c 0"
+	OUTPUT="head -c 0" # Equivalent to >/dev/null
 elif hash jq 2> /dev/null; then
 	OUTPUT="jq"
 else
@@ -197,7 +197,7 @@ if [ -t 0 ] && [ ${#CONF_FILES[@]} -eq 0 ]; then
 	fi
 else
 	if [ "$METHOD" = "INSERT" ]; then
-		if hash jq 2> /dev/null; then
+		if ! hash jq 2> /dev/null; then
 			echo "${0##*/}: ERROR: jq(1) is required to use INSERT method, install at <https://stedolan.github.io/jq/>"
 			exit 1
 		fi

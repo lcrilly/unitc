@@ -8,24 +8,26 @@ unitc
  * **URI** specifies an object of the Unit control API, e.g. `/config` .
  * Configuration data is read from stdin, if present.
  * [jq](https://stedolan.github.io/jq/) is used to prettify JSON output, if
-available.
+   available.
 
-| Options ||
-|-|-|
-| filename … | Read configuration data by concatenating the specified filename(s) instead of reading from stdin. 
+| Options | |
+|---------|-|
+| filename … | Read configuration data by concatenating the specified filename(s) instead of reading from stdin.
 | _HTTP method_ | It is usually not required to specify a HTTP method. `GET` is used to read the configuration. `PUT` is used when making configuration changes unless a specific method is provided.
 | `INSERT` | A _virtual_ HTTP method that prepends data when the URI specifies an existing array. The [jq](https://stedolan.github.io/jq/) tool is required for this option.
-| `-q` \| `--quiet` | No output to stdout
+| `-q` \| `--quiet` | No output to stdout.
 
 Command line options are case-insensitive and can be specified in any
 order. For example, a redundant part of the configuration can be located
 by URI and appended with `delete` in a subsequent invocation.
 
 ### Local Configuration
-For local instances of NGINX Unit, the control socket is automatically detected. When making changes, the error log is monitored and new log entries are shown.
+For local instances of NGINX Unit, the control socket is automatically
+detected. When making changes, the error log is monitored and new log entries
+are shown.
 
-| Options ||
-|-|-|
+| Options | |
+|---------|-|
 | `-l` \| `--nolog` | Do not monitor the error log after applying config changes.
 
 #### Examples
@@ -50,8 +52,8 @@ can be accessed over TCP or SSH, depending on the type of control socket:
 > [security implications](https://unit.nginx.org/howto/security/#secure-socket-and-state)
 > of managing remote configuration over plaintext HTTP.
 
-| Options ||
-|-|-|
+| Options | |
+|---------|-|
 | `ssh://…` | Specify the remote Unix control socket on the command line.
 | `http://…`*URI* | For remote TCP control sockets, the URI may include the protocol, hostname, and port.
 
