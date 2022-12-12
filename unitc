@@ -121,10 +121,17 @@ if [ $REMOTE -eq 0 ]; then
 	if [ -r /tmp/${0##*/}.$PID.env ]; then
 		source /tmp/${0##*/}.$PID.env
 	else
-		PARAMS=$(ps $PID | grep unitd | cut -f2- -dv | tr '[]' ' ' | cut -f4- -d ' ' | sed -e 's/ --/\n--/g')
+		# Check we have unitd in $PATH (and all the other tools we will need)
+		#
+		MISSING=$(hash unitd curl ps grep tr cut sed tail sleep 2>&1 | cut -f4 -d: | tr -d '\n')
+		if [ "$MISSING" != "" ]; then
+			echo "${0##*/}: ERROR: cannot find$MISSING: please install or add to \$PATH"
+			exit 1
+		fi
 
 		# Get control address
 		#
+		PARAMS=$(ps $PID | grep unitd | cut -f2- -dv | tr '[]' ' ' | cut -f4- -d ' ' | sed -e 's/ --/\n--/g')
 		CTRL_ADDR=$(echo "$PARAMS" | grep '\--control' | cut -f2 -d' ')
 		if [ "$CTRL_ADDR" = "" ]; then
 			CTRL_ADDR=$(unitd --help | grep -A1 '\--control' | tail -1 |  cut -f2 -d\")
