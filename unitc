@@ -65,8 +65,8 @@ ${0##*/} - a curl wrapper for managing NGINX Unit configuration
 USAGE: ${0##*/} [options] URI
 
 • URI is for the Unit control API object, e.g. /config
-• A local Unit control socket is detected unless specifying a remote instance.
-• Configuration data is read from stdin if present.
+• A local Unit control socket is detected unless specifying a remote instance
+• Configuration data is read from stdin if present
 
 General options
   filename …    # Read configuration data from file(s) instead of stdin
@@ -75,7 +75,7 @@ General options
   -q | --quiet  # No output to stdout
 
 Local options
-  -n | --nolog  # Do not monitor the error log after applying config changes
+  -l | --nolog  # Do not monitor the error log after applying config changes
 
 Remote options
   ssh://[user@]remote_host[:port]/path/to/control.socket  # Remote Unix socket
@@ -121,14 +121,6 @@ if [ $REMOTE -eq 0 ]; then
 	if [ -r /tmp/${0##*/}.$PID.env ]; then
 		source /tmp/${0##*/}.$PID.env
 	else
-		# Check we have all the tools we need in $PATH
-		#
-		MISSING=$(hash curl ps grep tr sed tail sleep 2>&1 | cut -f4 -d: | tr -d '\n')
-		if [ "$MISSING" != "" ]; then
-			echo "${0##*/}: ERROR: cannot find$MISSING: please install or add to \$PATH"
-			exit 1
-		fi
-
 		PARAMS=$(ps $PID | grep unitd | cut -f2- -dv | tr '[]' ' ' | cut -f4- -d ' ' | sed -e 's/ --/\n--/g')
 
 		# Get control address
