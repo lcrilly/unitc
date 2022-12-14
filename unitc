@@ -64,13 +64,13 @@ ${0##*/} - a curl wrapper for managing NGINX Unit configuration
 
 USAGE: ${0##*/} [options] URI
 
-• URI is for the Unit control API object, e.g. /config
-• A local Unit control socket is detected unless specifying a remote instance
-• Configuration data is read from stdin if present
+• URI is for Unit's control API target, e.g. /config
+• A local Unit control socket is detected unless a remote one is specified.
+• Configuration data is read from stdin.
 
 General options
-  filename …    # Read configuration data from file(s) instead of stdin
-  HTTP method   # Default=GET, or PUT with config data (case insensitive)
+  filename …    # Read configuration data from files instead of stdin
+  HTTP method   # Default=GET, or PUT with config data (case-insensitive)
   INSERT        # Virtual HTTP method to prepend data to an existing array
   -q | --quiet  # No output to stdout
 
@@ -197,7 +197,7 @@ if [ -t 0 ] && [ ${#CONF_FILES[@]} -eq 0 ]; then
 else
 	if [ "$METHOD" = "INSERT" ]; then
 		if ! hash jq 2> /dev/null; then
-			echo "${0##*/}: ERROR: jq(1) is required to use INSERT method, install at <https://stedolan.github.io/jq/>"
+			echo "${0##*/}: ERROR: jq(1) is required to use the INSERT method; install at <https://stedolan.github.io/jq/>"
 			exit 1
 		fi
 		NEW_ELEMENT=$(cat ${CONF_FILES[@]})
@@ -206,7 +206,7 @@ else
 		if [ "$(echo $OLD_ARRAY | jq -r type)" = "array" ]; then
 			echo $OLD_ARRAY | jq ". |= [$NEW_ELEMENT] + ." | $SSH_CMD curl -X PUT --data-binary @- $UNIT_CTRL$URI 2> /tmp/${0##*/}.$$ | $OUTPUT
 		else
-			echo "${0##*/}: ERROR: INSERT method must be used with an array"
+			echo "${0##*/}: ERROR: the INSERT method expects an array"
 			exit 3
 		fi
 	else

@@ -5,30 +5,29 @@ unitc
 
 ```USAGE: unitc [options] URI```
 
- * **URI** specifies an object of the Unit control API, e.g. `/config` .
- * Configuration data is read from stdin, if present.
+ * **URI** specifies the target in Unit's control API, e.g. `/config` .
+ * Configuration data is read from stdin.
  * [jq](https://stedolan.github.io/jq/) is used to prettify JSON output, if
    available.
 
 | Options | |
 |---------|-|
-| filename … | Read configuration data by concatenating the specified filename(s) instead of reading from stdin.
+| filename … | Read configuration data consequently from the specified files instead of stdin.
 | _HTTP method_ | It is usually not required to specify a HTTP method. `GET` is used to read the configuration. `PUT` is used when making configuration changes unless a specific method is provided.
 | `INSERT` | A _virtual_ HTTP method that prepends data when the URI specifies an existing array. The [jq](https://stedolan.github.io/jq/) tool is required for this option.
 | `-q` \| `--quiet` | No output to stdout.
 
-Command line options are case-insensitive and can be specified in any
-order. For example, a redundant part of the configuration can be located
-by URI and appended with `delete` in a subsequent invocation.
+Options are case insensitive and can appear in any order. For example, a
+redundant part of the configuration can be identified by its URI, and
+followed by `delete` in a subsequent command.
 
 ### Local Configuration
-For local instances of NGINX Unit, the control socket is automatically
-detected. When making changes, the error log is monitored and new log entries
-are shown.
+For local instances of Unit, the control socket is automatically detected.
+The error log is monitored; when changes occur, new log entries are shown.
 
 | Options | |
 |---------|-|
-| `-l` \| `--nolog` | Do not monitor the error log after applying config changes.
+| `-l` \| `--nolog` | Do not monitor the error log after configuration changes.
 
 #### Examples
 ```shell
